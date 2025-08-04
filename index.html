@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Video + SRT + Audio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="flex flex-col items-center p-6 bg-gray-100 min-h-screen">
+
+    <div class="w-[90%] space-y-6">
+        <!-- Video Player -->
+        <video id="videoPlayer" class="w-full rounded shadow-lg" src="" controls>
+            <!-- <source src="video.mp4" type="video/mp4"> -->
+            <track id="subtitleTrack" label="Khmer" kind="subtitles" srclang="km" src="" default>
+            Your browser does not support the video tag.
+        </video>
+
+        <!-- Audio Player -->
+        <audio id="audioPlayer" class="w-full mt-4" src="" controls>
+            <!-- <source src="audio.mp3" type="audio/mpeg"> -->
+            Your browser does not support the audio element.
+        </audio>
+
+        <!-- Subtitle Preview (raw text) -->
+        <div class="bg-white p-4 rounded shadow">
+            <h2 class="text-lg font-semibold mb-2">Subtitles (.srt or .vtt)</h2>
+            <pre id="subtitleText" class="text-sm text-gray-800 whitespace-pre-wrap"></pre>
+        </div>
+
+    </div>
+
+    <!-- Load and display subtitle text -->
+    <script>
+
+        window.onload = async function () {
+            const name = "The Generals Youngest Son - Returned Master Episode 1  kisskh";
+
+            const audio = document.getElementById('audioPlayer')
+            const video = document.getElementById('videoPlayer')
+            const track = document.getElementById('subtitleTrack')
+
+            // audio.src = `output/${name}.wav`;
+            audio.src = `output/${name}_km.mp3`;
+            video.src = `output/${name}_km.mp4`;
+            track.src = `output/${name}_km.srt`;
+
+            const subtitlePath = track.src;
+
+            // Ensure audio is preloaded
+            audio.preload = 'auto';
+            video.volume = 0.5;
+
+            // Sync audio and video together to test
+            video.addEventListener('play', () => {
+                audio.currentTime = video.currentTime;
+                audio.play();
+            });
+
+            // Pause audio when video pauses
+            video.addEventListener('pause', () => {
+                audio.pause();
+            });
+
+            // Seek audio to match video
+            video.addEventListener('seeked', () => {
+                audio.currentTime = video.currentTime;
+            });
+
+            // Optional: Keep correcting audio lag on timeupdate (for smoother sync)
+            video.addEventListener('timeupdate', () => {
+                const diff = Math.abs(video.currentTime - audio.currentTime);
+                if (diff > 0.3) { // adjust threshold as needed
+                    audio.currentTime = video.currentTime;
+                }
+            });
+
+            // Stop audio if video ends
+            video.addEventListener('ended', () => {
+                audio.pause();
+                audio.currentTime = 0;
+            });
+
+
+
+            try {
+                const response = await fetch(subtitlePath);
+                const content = await response.text();
+
+                // Optional: convert SRT to VTT if needed
+                const isSRT = subtitlePath.endsWith('.srt');
+                const processed = isSRT ? convertSRTtoVTT(content) : content;
+
+                document.getElementById('subtitleText').textContent = processed;
+
+                // If it was SRT, inject it as a VTT Blob to the video track
+                if (isSRT) {
+                    const blob = new Blob([processed], { type: 'text/vtt' });
+                    const vttUrl = URL.createObjectURL(blob);
+                    document.getElementById('subtitleTrack').src = vttUrl;
+                }
+            } catch (err) {
+                document.getElementById('subtitleText').textContent = 'Failed to load subtitle file.';
+                console.error(err);
+            }
+        };
+
+        function convertSRTtoVTT(srtContent) {
+            return 'WEBVTT\n\n' + srtContent
+                .replace(new RegExp('\r', 'g'), '')
+                .replace(new RegExp('(\\d+)\\n(\\d{2}:\\d{2}:\\d{2},\\d{3}) --> (\\d{2}:\\d{2}:\\d{2},\\d{3})', 'g'), '$2 --> $3')
+                .replace(new RegExp(',', 'g'), '.');
+        }
+    </script>
+
+</body>
+
+</html>

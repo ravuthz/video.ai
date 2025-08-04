@@ -1,0 +1,5 @@
+{
+    "emc.enableGpuAcceleration": true,
+    "avprobe.ffmpegPath": "/usr/bin/ffmpeg",
+    "avprobe.ffprobePath": "/usr/bin/ffprobe"
+}

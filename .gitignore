@@ -300,5 +300,7 @@ input
 output
 .*.md
 
+tmp
+separated
 
 .DS_Store

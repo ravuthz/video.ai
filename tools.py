@@ -3,14 +3,15 @@ import re
 import subprocess
 import sys
 import json
-from pathlib import Path
-from typing import List, Dict, Optional
-import edge_tts
 import logging
+import edge_tts
+import unicodedata
 
 from deep_translator import GoogleTranslator
 from pydub import AudioSegment
 from pydub.utils import mediainfo
+from typing import List, Dict, Optional
+from pathlib import Path
 
 from config import EDGE_TTS_VOICES, GOOGLE_LANGUAGES
 
@@ -67,8 +68,8 @@ class VideoTool:
     def __init__(self):
         # self.temp_dir = tempfile.mkdtemp()
 
-        self.temp_dir = "./tmp"
-        self.output_dir = "./output"
+        self.temp_dir = "tmp"
+        self.output_dir = "output"
 
         os.makedirs(self.temp_dir, exist_ok=True)
         os.makedirs(self.output_dir, exist_ok=True)
@@ -98,12 +99,31 @@ class VideoTool:
             logger.warning("No subtitles found in video")
             return None
 
+    async def extract_audio(video_path: str, audio_output: str):
+        process = await asyncio.create_subprocess_exec(
+            'ffmpeg',
+            '-y',                   # overwrite output if exists
+            '-i', video_path,       # input video file
+            '-vn',                  # remove video
+            '-acodec', 'copy',      # copy audio codec
+            audio_output,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await process.communicate()
+
+        if process.returncode != 0:
+            raise RuntimeError(f"ffmpeg failed:\n{stderr.decode()}")
+        else:
+            print(f"Audio saved to: {audio_output}")
+            
+            
     def temp_path(self, path, name=None):
-        tmp_path = Path(self.temp_dir) / Path(path).stem
-        if name:
-            tmp_path = tmp_path / name
-        Path(tmp_path).mkdir(parents=True, exist_ok=True)
-        return tmp_path
+            tmp_path = Path(self.temp_dir) / Path(path).stem
+            if name:
+                tmp_path = tmp_path / name
+            Path(tmp_path).mkdir(parents=True, exist_ok=True)
+            return tmp_path
 
     def parse_srt(self, srt_path: str) -> List[Dict]:
         """Parse SRT subtitle file"""
@@ -272,6 +292,9 @@ class VideoTool:
 
     async def generate_speech(self, text: str, voice: str, output_path: str):
         """Generate speech using edge-tts"""
+        # clean text ។
+        text = text.strip().replace("។", "  ")
+        text = unicodedata.normalize("NFC", text)
         communicate = edge_tts.Communicate(text, voice)
         await communicate.save(output_path)
 
@@ -479,7 +502,6 @@ class VideoTool:
 
     def cleanup(self):
         """Clean up temporary files"""
-        import shutil
-
-        if os.path.exists(self.temp_dir):
-            shutil.rmtree(self.temp_dir)
+        # import shutil
+        # if os.path.exists(self.temp_dir):
+        #     shutil.rmtree(self.temp_dir)
